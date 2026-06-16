@@ -1,5 +1,22 @@
+# Python
 venv/
 __pycache__/
 *.pyc
+*.pyo
 .env
+skillrank.db
+*.db
+
+# Node
+node_modules/
+.next/
+.vercel/
+*.local
+
+# OS
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

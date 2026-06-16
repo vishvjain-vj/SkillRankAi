@@ -1,24 +1,38 @@
-# backend/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-# Import our modular routers
+from database.memory_db import init_db
 from api.auth import router as auth_router
 from api.chat import router as chat_router
+import os
 
-app = FastAPI(title="SkillRank Cognitive Tracker API")
+app = FastAPI(title="SkillRank AI API", version="2.0.0")
+
+# Allow the Vercel frontend domain + localhost for dev.
+# Set ALLOWED_ORIGINS in Railway env vars to your actual Vercel URL.
+ALLOWED_ORIGINS = os.environ.get(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:5173",
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Connect the routers to the main app
+
+@app.on_event("startup")
+def startup():
+    init_db()
+    print("✅ Database initialised")
+
+
 app.include_router(auth_router)
 app.include_router(chat_router)
 
+
 @app.get("/")
-def health_check():
-    return {"status": "System Online. Ready to track cognitive effort."}
+def health():
+    return {"status": "online", "version": "2.0.0"}
