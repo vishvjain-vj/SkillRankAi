@@ -1,43 +1,38 @@
-// Internal array used for scoring math
-const ALL_RANKS = [
-  { name: "Novice", threshold: 0 },
-  { name: "Apprentice", threshold: 100 },
-  { name: "Adept", threshold: 300 },
-  { name: "Expert", threshold: 600 },
-  { name: "Master", threshold: 1000 },
-  { name: "Grandmaster", threshold: 1500 },
+export const RANKS = [
+  { name: "Novice", threshold: 0, color: "#9ca3af" },        // Gray
+  { name: "Apprentice", threshold: 100, color: "#3b82f6" },  // Blue
+  { name: "Adept", threshold: 300, color: "#22c55e" },       // Green
+  { name: "Expert", threshold: 600, color: "#a855f7" },      // Purple
+  { name: "Master", threshold: 1000, color: "#f97316" },     // Orange
+  { name: "Grandmaster", threshold: 1500, color: "#ef4444" },// Red
 ];
 
-// Exported as a function
-export function RANKS() {
-  return ALL_RANKS;
-}
-
-export function getRank(score: number): string {
-  for (let i = ALL_RANKS.length - 1; i >= 0; i--) {
-    if (score >= ALL_RANKS[i].threshold) {
-      return ALL_RANKS[i].name;
+// Notice we removed ': string' and now return the whole object
+export function getRank(score: number) {
+  for (let i = RANKS.length - 1; i >= 0; i--) {
+    if (score >= RANKS[i].threshold) {
+      return RANKS[i]; 
     }
   }
-  return ALL_RANKS[0].name;
+  return RANKS[0];
 }
 
 export function rankProgress(score: number) {
   let currentRankIndex = 0;
   
-  for (let i = ALL_RANKS.length - 1; i >= 0; i--) {
-    if (score >= ALL_RANKS[i].threshold) {
+  for (let i = RANKS.length - 1; i >= 0; i--) {
+    if (score >= RANKS[i].threshold) {
       currentRankIndex = i;
       break;
     }
   }
 
-  if (currentRankIndex === ALL_RANKS.length - 1) {
+  if (currentRankIndex === RANKS.length - 1) {
     return { currentScore: score, nextThreshold: score, progressPercentage: 100 };
   }
 
-  const currentThreshold = ALL_RANKS[currentRankIndex].threshold;
-  const nextThreshold = ALL_RANKS[currentRankIndex + 1].threshold;
+  const currentThreshold = RANKS[currentRankIndex].threshold;
+  const nextThreshold = RANKS[currentRankIndex + 1].threshold;
   
   const pointsIntoRank = score - currentThreshold;
   const pointsNeeded = nextThreshold - currentThreshold;

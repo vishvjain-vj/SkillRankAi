@@ -283,7 +283,7 @@ export default function Home() {
                 <circle
                 cx="60" cy="60" r="48" fill="none"
                 stroke="url(#scoreGrad)" strokeWidth="9"
-                strokeDasharray={`${(2 * Math.PI * 48 * (Number(progress) || 0)) / 100} ${2 * Math.PI * 48}`}
+                strokeDasharray={`${(2 * Math.PI * 48 * (progress.progressPercentage || 0)) / 100} ${2 * Math.PI * 48}`}
                 strokeLinecap="round"
               />
               <defs>
@@ -303,9 +303,9 @@ export default function Home() {
           </span>
           <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
             <div className="h-full bg-gradient-to-r from-teal-500 to-teal-300 rounded-full transition-all duration-500"
-                 style={{ width: `${progress}%` }}/>
+                 style={{ width: `${progress.progressPercentage}%` }}/>
           </div>
-          <span className="font-mono text-[9px] text-white/20">{progress}% to next rank</span>
+          <span className="font-mono text-[9px] text-white/20">{progress.progressPercentage.toFixed(0)}% to next rank</span>
         </div>
 
         {/* Session stats */}
