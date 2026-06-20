@@ -1,5 +1,9 @@
 import time
+import json
+import sqlite3
+import os
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from database.memory_db import (
     get_user, create_user,
@@ -7,12 +11,15 @@ from database.memory_db import (
     get_history, append_message,
     update_global_score, get_global_score,
 )
-from services.ai_agent import generate_reply, evaluate_curiosity, generate_bluff_question
+from services.ai_agent import (
+    CHAT_MODEL,
+    _call_stream,
+    evaluate_curiosity,
+    generate_bluff_question,
+)
 
 router = APIRouter()
 
-# Minimum seconds-per-word for the speed check.
-# 4 words/sec is average reading pace; we flag replies < 30% of expected time.
 WORDS_PER_SEC = 4.0
 SPEED_THRESHOLD = 0.30
 
@@ -25,12 +32,11 @@ class ChatRequest(BaseModel):
 
 @router.post("/chat")
 def chat(req: ChatRequest):
-    print(f"\n--- CHAT: user={req.user_id} session={req.session_id} ---")
+    print(f"\n--- CHAT: user={req.user_id} session={req.session_id} ---", flush=True)
+    print(f"[ROUTE] payload received: message={req.message[:50]!r}", flush=True)
 
-    # ── Ensure user + session exist ───────────────────────────────────────────
     if not get_user(req.user_id):
         create_user(req.user_id, "Guest")
-
     if not get_session(req.session_id):
         create_session(req.session_id, req.user_id)
 
@@ -38,12 +44,9 @@ def chat(req: ChatRequest):
     current_time = time.time()
     user_msg_lower = req.message.lower()
 
-    # ── BLUFF PHASE 2: evaluate the student's answer ──────────────────────────
+    # ── BLUFF PHASE 2: evaluate the student's answer (non-streamed) ───────────
     if session["in_bluff_trap"]:
         time_taken = current_time - session["last_reply_time"]
-        expected_keyword = session.get("bluff_keyword", "")  # stored in session
-        
-        # Fetch keyword from session (we store it as a special field)
         conn_kw = _get_bluff_keyword(req.session_id)
         answered_correctly = conn_kw and conn_kw.lower() in user_msg_lower
 
@@ -68,9 +71,10 @@ def chat(req: ChatRequest):
             "score_added": delta,
             "total_score": get_global_score(req.user_id),
             "reason": "bluff_resolved",
+            "streamed": False,
         }
 
-    # ── BLUFF PHASE 1: spring the trap ───────────────────────────────────────
+    # ── BLUFF PHASE 1: spring the trap (non-streamed) ──────────────────────────
     last_wc = session["last_word_count"]
     last_t  = session["last_reply_time"]
     elapsed = current_time - last_t if last_t else 999
@@ -96,50 +100,69 @@ def chat(req: ChatRequest):
             "score_added": 0,
             "total_score": get_global_score(req.user_id),
             "reason": "bluff_initiated",
+            "streamed": False,
         }
 
-    # ── Normal flow ───────────────────────────────────────────────────────────
+    # ── Normal flow: STREAMED response ─────────────────────────────────────────
+    print("[ROUTE] entering normal (streamed) flow", flush=True)
     history = get_history(req.session_id)
     history.append({"role": "user", "content": req.message})
+    print(f"[ROUTE] history length={len(history)}", flush=True)
 
-    try:
-        reply        = generate_reply(history)
-        score_added, reason = evaluate_curiosity(req.message)
-    except Exception as e:
-        print(f"LLM ERROR: {e}")
-        return {
-            "reply": "The AI is temporarily unavailable. Please try again.",
-            "score_added": 0,
+    def event_generator():
+        print("[GEN] event_generator() started executing", flush=True)
+        full_reply = ""
+        try:
+            chunk_i = 0
+            for chunk in _call_stream(CHAT_MODEL, history):
+                chunk_i += 1
+                if chunk_i == 1:
+                    print(f"[GEN] received first chunk from _call_stream: {chunk!r}", flush=True)
+                full_reply += chunk
+                # NDJSON-style framing so the frontend can split events safely
+                yield json.dumps({"type": "chunk", "content": chunk}) + "\n"
+            print(f"[GEN] _call_stream loop finished, total chunks={chunk_i}", flush=True)
+        except Exception as e:
+            print(f"[GEN] STREAM ERROR: {type(e).__name__}: {e}", flush=True)
+            yield json.dumps({
+                "type": "error",
+                "content": "The AI is temporarily unavailable. Please try again.",
+            }) + "\n"
+            return
+
+        print(f"[GEN] full_reply length={len(full_reply)}, proceeding to scoring", flush=True)
+
+        # Stream finished cleanly — now do scoring + persistence
+        try:
+            score_added, reason = evaluate_curiosity(req.message)
+        except Exception as e:
+            print(f"[GEN] SCORE ERROR (post-stream): {e}", flush=True)
+            score_added, reason = 0, "scoring_failed"
+
+        append_message(req.session_id, "user", req.message)
+        append_message(req.session_id, "assistant", full_reply)
+
+        word_count = len(full_reply.split())
+        update_session(req.session_id,
+                       session_score=session["session_score"] + score_added,
+                       last_reply_time=time.time(),
+                       last_word_count=word_count)
+        update_global_score(req.user_id, score_added)
+
+        print("[GEN] yielding final 'done' event", flush=True)
+        yield json.dumps({
+            "type": "done",
+            "score_added": score_added,
             "total_score": get_global_score(req.user_id),
-            "reason": "llm_error",
-        }
+            "reason": reason,
+        }) + "\n"
+        print("[GEN] event_generator() fully complete", flush=True)
 
-    # Persist messages
-    append_message(req.session_id, "user",      req.message)
-    append_message(req.session_id, "assistant", reply)
-
-    word_count = len(reply.split())
-    update_session(req.session_id,
-                   session_score=session["session_score"] + score_added,
-                   last_reply_time=current_time,
-                   last_word_count=word_count)
-    update_global_score(req.user_id, score_added)
-
-    print(f"Score +{score_added} | Global: {get_global_score(req.user_id)}")
-
-    return {
-        "reply":       reply,
-        "score_added": score_added,
-        "total_score": get_global_score(req.user_id),
-        "reason":      reason,
-    }
+    print("[ROUTE] returning StreamingResponse object", flush=True)
+    return StreamingResponse(event_generator(), media_type="application/x-ndjson")
 
 
-# ── Bluff keyword helpers (stored as a lightweight sessions column) ────────────
-# We piggyback on the sessions table via a TEXT column added in db.py.
-# These helpers keep the chat.py logic clean.
-
-import sqlite3, os
+# ── Bluff keyword helpers ─────────────────────────────────────────────────────
 
 def _get_bluff_keyword(session_id: str) -> str:
     db_path = os.environ.get("DB_PATH", "skillrank.db")
@@ -158,7 +181,6 @@ def _store_bluff_keyword(session_id: str, keyword: str):
     db_path = os.environ.get("DB_PATH", "skillrank.db")
     try:
         conn = sqlite3.connect(db_path)
-        # Add column if it doesn't exist yet (safe migration)
         try:
             conn.execute("ALTER TABLE sessions ADD COLUMN bluff_keyword TEXT DEFAULT ''")
             conn.commit()

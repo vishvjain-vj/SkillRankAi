@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()  # must run before any os.environ.get() calls below or in imported modules
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database.memory_db import init_db
@@ -26,7 +29,8 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     init_db()
-    print("✅ Database initialised")
+    key_status = "set" if os.environ.get("OPENROUTER_API_KEY") else "MISSING"
+    print(f"✅ Database initialised | OPENROUTER_API_KEY: {key_status}")
 
 
 app.include_router(auth_router)
