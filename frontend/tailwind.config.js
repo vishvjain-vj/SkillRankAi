@@ -4,17 +4,20 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        bg:      "#060912",
+        bg:      "#131314", 
         surface: "rgba(255,255,255,0.03)",
-        border:  "rgba(255,255,255,0.07)",
+        border:  "rgba(255,255,255,0.08)",
         gold:    "#ffd700",
-        mint:    "#00ffb4",
+        cyberRed:"#ff1e3c", /* Your new primary accent color */
         purple:  "#7b61ff",
       },
       fontFamily: {
+        // Sets Google Sans as the absolute default for the app
+        sans:     ["var(--font-google-sans)", "sans-serif"], 
+        // Swaps out 'Rajdhani' so your existing 'font-body' classes instantly use Google Sans
+        body:     ["var(--font-google-sans)", "sans-serif"], 
         orbitron: ["Orbitron", "monospace"],
         mono:     ["Space Mono", "monospace"],
-        body:     ["Rajdhani", "sans-serif"],
       },
       keyframes: {
         pulse_gold: {

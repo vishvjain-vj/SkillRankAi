@@ -1,14 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Rewrite /api/* → backend so the key never leaks to the browser
   async rewrites() {
+    // Automatically switch the destination based on where the app is running
+    const backendUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://skillrank-ai.onrender.com' // <-- PASTE YOUR RENDER URL HERE
+      : 'http://127.0.0.1:8000/:path';
+
     return [
       {
-        source: "/api/:path*",
-        destination: `${process.env.BACKEND_URL || "http://localhost:8000"}/:path*`,
+        source: '/api/:path((?!auth).*)', 
+        destination: backendUrl, 
       },
-    ];
-  },
-};
+    ]
+  }
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig // or export default nextConfig
