@@ -1,4 +1,5 @@
-export const RANKS = [
+// Internal array used for scoring math
+const ALL_RANKS = [
   { name: "Novice", threshold: 0 },
   { name: "Apprentice", threshold: 100 },
   { name: "Adept", threshold: 300 },
@@ -7,33 +8,36 @@ export const RANKS = [
   { name: "Grandmaster", threshold: 1500 },
 ];
 
+// Exported as a function
+export function RANKS() {
+  return ALL_RANKS;
+}
+
 export function getRank(score: number): string {
-  // Loop backwards to find the highest rank achieved
-  for (let i = RANKS.length - 1; i >= 0; i--) {
-    if (score >= RANKS[i].threshold) {
-      return RANKS[i].name;
+  for (let i = ALL_RANKS.length - 1; i >= 0; i--) {
+    if (score >= ALL_RANKS[i].threshold) {
+      return ALL_RANKS[i].name;
     }
   }
-  return RANKS[0].name;
+  return ALL_RANKS[0].name;
 }
 
 export function rankProgress(score: number) {
   let currentRankIndex = 0;
   
-  for (let i = RANKS.length - 1; i >= 0; i--) {
-    if (score >= RANKS[i].threshold) {
+  for (let i = ALL_RANKS.length - 1; i >= 0; i--) {
+    if (score >= ALL_RANKS[i].threshold) {
       currentRankIndex = i;
       break;
     }
   }
 
-  // If they hit the max rank
-  if (currentRankIndex === RANKS.length - 1) {
+  if (currentRankIndex === ALL_RANKS.length - 1) {
     return { currentScore: score, nextThreshold: score, progressPercentage: 100 };
   }
 
-  const currentThreshold = RANKS[currentRankIndex].threshold;
-  const nextThreshold = RANKS[currentRankIndex + 1].threshold;
+  const currentThreshold = ALL_RANKS[currentRankIndex].threshold;
+  const nextThreshold = ALL_RANKS[currentRankIndex + 1].threshold;
   
   const pointsIntoRank = score - currentThreshold;
   const pointsNeeded = nextThreshold - currentThreshold;

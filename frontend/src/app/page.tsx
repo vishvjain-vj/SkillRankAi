@@ -283,7 +283,7 @@ export default function Home() {
                 <circle
                 cx="60" cy="60" r="48" fill="none"
                 stroke="url(#scoreGrad)" strokeWidth="9"
-                strokeDasharray={`${(2 * Math.PI * 48 * progress) / 100} ${2 * Math.PI * 48}`}
+                strokeDasharray={`${(2 * Math.PI * 48 * (Number(progress) || 0)) / 100} ${2 * Math.PI * 48}`}
                 strokeLinecap="round"
               />
               <defs>
