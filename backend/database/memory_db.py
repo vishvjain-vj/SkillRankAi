@@ -1,6 +1,6 @@
 import os
 import time
-from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, String, Float, Text, ForeignKey
+from sqlalchemy import create_engine, inspect, text, MetaData, Table, Column, Integer, String, Float, Text, ForeignKey
 
 # ── Connection Setup ────────────────────────────────────────────────────────
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./skillrank.db")
@@ -22,6 +22,7 @@ def init_db():
     Table('users', metadata,
         Column('user_id', String(255), primary_key=True),
         Column('name', String(255), nullable=False),
+        Column('password_hash', String(255), nullable=True),
         Column('global_score', Integer, default=0, nullable=False),
         Column('created_at', Float, nullable=False)
     )
@@ -46,6 +47,16 @@ def init_db():
 
     # This creates the tables if they don't exist
     metadata.create_all(engine)
+    ensure_user_password_column()
+
+
+def ensure_user_password_column():
+    columns = {column["name"] for column in inspect(engine).get_columns("users")}
+    if "password_hash" in columns:
+        return
+
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL"))
 
 
 # ── User helpers ──────────────────────────────────────────────────────────────
@@ -54,11 +65,18 @@ def get_user(user_id: str):
         result = conn.execute(text("SELECT * FROM users WHERE user_id = :u"), {"u": user_id}).mappings().first()
         return dict(result) if result else None
 
-def create_user(user_id: str, name: str):
+def create_user(user_id: str, name: str, password_hash: str | None = None):
     with engine.begin() as conn:
         conn.execute(
-            text("INSERT INTO users (user_id, name, global_score, created_at) VALUES (:u, :n, 0, :c)"),
-            {"u": user_id, "n": name, "c": time.time()}
+            text("INSERT INTO users (user_id, name, password_hash, global_score, created_at) VALUES (:u, :n, :p, 0, :c)"),
+            {"u": user_id, "n": name, "p": password_hash, "c": time.time()}
+        )
+
+def set_user_password(user_id: str, password_hash: str):
+    with engine.begin() as conn:
+        conn.execute(
+            text("UPDATE users SET password_hash = :p WHERE user_id = :u"),
+            {"u": user_id, "p": password_hash}
         )
 
 def update_global_score(user_id: str, delta: int):

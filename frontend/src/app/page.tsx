@@ -163,7 +163,7 @@ export default function Home() {
             SKILLRANK AI
           </h1>
           
-          <p className="font-sans text-[20px] text-white/40 tracking-widest mt-3 uppercase bg-gradient-to-r from-teal-200 via-teal-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-lg w-full text-center">
+          <p className="font-sans text-[20px] text-white/40 tracking-widest mt-3 uppercase bg-gradient-to-r from-teal-200 via-teal-400 to-cyan-400 bg-clip-text drop-shadow-lg w-full text-center">
             Curiosity is your currency.
           </p>
         </div>
@@ -191,8 +191,18 @@ export default function Home() {
           <form 
             onSubmit={async (e) => {
               e.preventDefault();
-              // We will wire up the actual NextAuth credentials logic here next!
-              console.log("Submitting:", { email, password, isLoginView });
+              setLoginErr("");
+
+              const result = await signIn("credentials", {
+                email,
+                password,
+                isLogin: String(isLoginView),
+                redirect: false,
+              });
+
+              if (result?.error) {
+                setLoginErr(isLoginView ? "Invalid email or password." : "Could not create that account.");
+              }
             }} 
             className="space-y-4"
           >
@@ -221,6 +231,12 @@ export default function Home() {
             </button>
           </form>
 
+          {loginError && (
+            <p className="mt-4 text-center font-mono text-xs tracking-widest text-red-400">
+              {loginError}
+            </p>
+          )}
+
           {/* Divider */}
           <div className="flex items-center my-6 gap-4">
             <div className="flex-1 h-px bg-white/10"></div>
@@ -230,7 +246,10 @@ export default function Home() {
 
           {/* Google Button */}
           <button
-            onClick={() => signIn("google")}
+            onClick={() => {
+              setLoginErr("");
+              signIn("google", { callbackUrl: "/" });
+            }}
             type="button"
             className="w-full bg-white text-black font-sans text-[16px] font-bold tracking-widest py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-200 transition-all duration-300"
           >
