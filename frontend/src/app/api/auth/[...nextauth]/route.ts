@@ -2,6 +2,8 @@ import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 
+const backendUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:8000";
+
 const handler = NextAuth({
   providers: [
     GoogleProvider({
@@ -26,15 +28,16 @@ const handler = NextAuth({
 
         // THIS IS WHERE WE TALK TO YOUR FASTAPI BACKEND
         try {
-          const res = await fetch("http://127.0.0.1:8000/auth/credentials", {
+          const res = await fetch(`${backendUrl}/auth/credentials`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: credentials.email,
-              password: credentials.password,
-              is_login: credentials.isLogin === "true"
-            }),
-          });
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    email: credentials.email,
+    password: credentials.password,
+    is_login: credentials.isLogin === "true"
+  }),
+  signal: AbortSignal.timeout(15000), // 15s timeout instead of hanging forever
+});
 
           const user = await res.json();
 
