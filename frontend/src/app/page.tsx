@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { login, sendMessageStream } from "@/lib/api";
 import { getRank, rankProgress, RANKS } from "@/lib/ranks";
-import { useSession, signIn } from "next-auth/react";
+import { useSession, signIn, signOut } from "next-auth/react";
 
 interface Message {
   role: "user" | "assistant";
@@ -232,7 +232,7 @@ export default function Home() {
           </form>
 
           {loginError && (
-            <p className="mt-4 text-center font-mono text-xs tracking-widest text-red-400">
+            <p className="mt-4 text-center font-sans text-xs tracking-widest text-red-400">
               {loginError}
             </p>
           )}
@@ -240,7 +240,7 @@ export default function Home() {
           {/* Divider */}
           <div className="flex items-center my-6 gap-4">
             <div className="flex-1 h-px bg-white/10"></div>
-            <span className="font-mono text-xs text-white/30 tracking-widest">OR</span>
+            <span className="font-sans text-xs text-white/30 tracking-widest">OR</span>
             <div className="flex-1 h-px bg-white/10"></div>
           </div>
 
@@ -248,7 +248,11 @@ export default function Home() {
           <button
             onClick={() => {
               setLoginErr("");
-              signIn("google", { callbackUrl: "/" });
+              signIn(
+                "google",
+                { callbackUrl: "/" },
+                { prompt: "select_account" }
+              );
             }}
             type="button"
             className="w-full bg-white text-black font-sans text-[16px] font-bold tracking-widest py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-200 transition-all duration-300"
@@ -316,7 +320,7 @@ export default function Home() {
               <span className="font-orbitron text-2xl font-black text-teal-300">{score}</span>
             </div>
           </div>
-          <span className="font-mono text-[11px] font-semi tracking-widest text-white/30 uppercase">Curiosity XP</span>
+          <span className="font-sans text-[11px] font-semi tracking-widest text-white/30 uppercase">Curiosity XP</span>
           <span className="font-orbitron text-sm font-bold tracking-wider" style={{ color: rank.color }}>
             {rank.name}
           </span>
@@ -324,36 +328,36 @@ export default function Home() {
             <div className="h-full bg-gradient-to-r from-teal-500 to-teal-300 rounded-full transition-all duration-500"
                  style={{ width: `${progress.progressPercentage}%` }}/>
           </div>
-          <span className="font-mono text-[9px] text-white/20">{progress.progressPercentage.toFixed(0)}% to next rank</span>
+          <span className="font-sans text-[9px] text-white/20">{progress.progressPercentage.toFixed(0)}% to next rank</span>
         </div>
 
         {/* Session stats */}
         <div>
-          <p className="font-mono text-[11px] tracking-widest text-teal-300/70 mb-2">▸ SESSION</p>
+          <p className="font-sans text-[11px] tracking-widest text-teal-300/70 mb-2">▸ SESSION</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-[#161b22] border border-white/[0.06] rounded-xl p-3 text-center">
               <div className="font-orbitron text-lg text-teal-300">{interactions}</div>
-              <div className="font-mono text-[9px] text-white/30 uppercase mt-1">Messages</div>
+              <div className="font-sans text-[9px] text-white/30 uppercase mt-1">Messages</div>
             </div>
             <div className="bg-[#161b22] border border-white/[0.06] rounded-xl p-3 text-center">
               <div className="font-orbitron text-lg" style={{ color: lastXP >= 0 ? "#5eead4" : "#f87171" }}>
                 {lastXP >= 0 ? "+" : ""}{lastXP}
               </div>
-              <div className="font-mono text-[9px] text-white/30 uppercase mt-1">Last XP</div>
+              <div className="font-sans text-[9px] text-white/30 uppercase mt-1">Last XP</div>
             </div>
           </div>
         </div>
 
         {/* Rank ladder */}
         <div>
-          <p className="font-mono text-[11px] tracking-widest text-teal-300/70 mb-2">▸ RANK LADDER</p>
+          <p className="font-sans text-[11px] tracking-widest text-teal-300/70 mb-2">▸ RANK LADDER</p>
           <div className="space-y-1">
             {RANKS.map(r => {
               const isActive = rank.name === r.name;
               const isDone   = score >= r.threshold && !isActive;
               return (
                 <div key={r.name}
-                     className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[9px] font-mono
+                     className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[9px] font-sans
                        ${isActive ? "bg-teal-400/[0.08] border border-teal-400/20" : ""}
                        ${isDone   ? "opacity-50" : ""}
                        ${!isActive && !isDone ? "opacity-20" : ""}`}>
@@ -368,7 +372,7 @@ export default function Home() {
 
         {/* Badges */}
         <div>
-          <p className="font-mono text-[11px] tracking-widest text-teal-300/70 mb-2">▸ BADGES</p>
+          <p className="font-sans text-[11px] tracking-widest text-teal-300/70 mb-2">▸ BADGES</p>
           <div className="flex flex-wrap gap-1">
             {[
               ["⚡", "FIRST STEP",   interactions >= 1],
@@ -378,7 +382,7 @@ export default function Home() {
               ["👑", "LEGEND CHASE", score >= 800],
             ].map(([icon, label, earned]) => (
               <span key={label as string}
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-mono border
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-sans border
                       ${earned
                         ? "bg-teal-400/[0.08] border-teal-400/25 text-teal-300"
                         : "bg-white/[0.02] border-white/[0.06] text-white/20"}`}>
@@ -391,11 +395,11 @@ export default function Home() {
         <div className="mt-auto">
           <button
             onClick={() => { setMessages([]); setLastXP(0); setInteractions(0); }}
-            className="w-full py-2 font-mono text-[10px] tracking-widest text-white/30 border border-white/[0.06] rounded-lg hover:border-red-400/30 hover:text-red-400 transition-all"
+            className="w-full py-2 font-sans text-[10px] tracking-widest text-white/30 border border-white/[0.06] rounded-lg hover:border-red-400/30 hover:text-red-400 transition-all"
           >
             ↺ RESET SESSION
           </button>
-          <p className="text-center font-mono text-[8px] text-white/15 mt-3 tracking-widest">
+          <p className="text-center font-sans text-[8px] text-white/15 mt-3 tracking-widest">
             SKILLRANK AI · v2.0
           </p>
         </div>
@@ -427,7 +431,10 @@ export default function Home() {
           
           <UserMenu 
             userName={user.name} 
-            onLogout={() => setUser(null)} 
+            onLogout={() => {
+              setUser(null);
+              signOut({ callbackUrl: "/" });
+            }} 
           />
         </header>
 
@@ -511,14 +518,14 @@ export default function Home() {
               onClick={handleSend}
               disabled={loading || !input.trim()}
               className="flex-shrink-0 bg-teal-400/10 border border-teal-400/30 text-teal-300 rounded-2xl px-5 py-6 
-                        font-mono text-sm font-bold tracking-widest 
+                        font-sans text-sm font-bold tracking-widest 
                         hover:bg-teal-400/20 hover:border-teal-400/50
                         transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               SEND
             </button>
           </div>
-          <p className="font-mono text-[15px] text-white/15 text-center mt-3 tracking-widest">
+          <p className="font-sans text-[15px] text-white/15 text-center mt-3 tracking-widest">
                 ·  SKILLRANK AI  · 
           </p>
         </div>
