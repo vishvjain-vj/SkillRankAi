@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/health-ping",
+      "schedule": "*/10 * * * *"
+    }
+  ]
+}

@@ -34,6 +34,7 @@ def init_db():
         Column('last_reply_time', Float, default=0, nullable=False),
         Column('last_word_count', Integer, default=0, nullable=False),
         Column('in_bluff_trap', Integer, default=0, nullable=False),
+        Column('bluff_keyword', String(255), default="", nullable=False),
         Column('created_at', Float, nullable=False)
     )
 
@@ -47,16 +48,47 @@ def init_db():
 
     # This creates the tables if they don't exist
     metadata.create_all(engine)
-    ensure_user_password_column()
+    ensure_schema_columns()
 
 
-def ensure_user_password_column():
-    columns = {column["name"] for column in inspect(engine).get_columns("users")}
-    if "password_hash" in columns:
-        return
+def ensure_schema_columns():
+    required_columns = {
+        "users": {
+            "name": "VARCHAR(255) NOT NULL DEFAULT 'Student'",
+            "password_hash": "VARCHAR(255) NULL",
+            "global_score": "INTEGER NOT NULL DEFAULT 0",
+            "created_at": "FLOAT NOT NULL DEFAULT 0",
+        },
+        "sessions": {
+            "session_score": "INTEGER NOT NULL DEFAULT 0",
+            "last_reply_time": "FLOAT NOT NULL DEFAULT 0",
+            "last_word_count": "INTEGER NOT NULL DEFAULT 0",
+            "in_bluff_trap": "INTEGER NOT NULL DEFAULT 0",
+            "bluff_keyword": "VARCHAR(255) NOT NULL DEFAULT ''",
+            "created_at": "FLOAT NOT NULL DEFAULT 0",
+        },
+        "messages": {
+            "role": "VARCHAR(50) NOT NULL DEFAULT 'user'",
+            "content": "TEXT",
+            "created_at": "FLOAT NOT NULL DEFAULT 0",
+        },
+    }
+
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
 
     with engine.begin() as conn:
-        conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL"))
+        for table_name, columns in required_columns.items():
+            if table_name not in table_names:
+                continue
+
+            existing_columns = {
+                column["name"] for column in inspector.get_columns(table_name)
+            }
+
+            for column_name, definition in columns.items():
+                if column_name not in existing_columns:
+                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}"))
 
 
 # ── User helpers ──────────────────────────────────────────────────────────────
@@ -102,8 +134,8 @@ def create_session(session_id: str, user_id: str):
     with engine.begin() as conn:
         conn.execute(
             text("""INSERT INTO sessions
-                   (session_id, user_id, session_score, last_reply_time, last_word_count, in_bluff_trap, created_at)
-                   VALUES (:s, :u, 0, 0, 0, 0, :c)"""),
+                   (session_id, user_id, session_score, last_reply_time, last_word_count, in_bluff_trap, bluff_keyword, created_at)
+                   VALUES (:s, :u, 0, 0, 0, 0, '', :c)"""),
             {"s": session_id, "u": user_id, "c": time.time()}
         )
 

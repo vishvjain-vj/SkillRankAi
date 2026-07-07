@@ -1,7 +1,5 @@
 import time
 import json
-import sqlite3
-import os
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -165,32 +163,9 @@ def chat(req: ChatRequest):
 # ── Bluff keyword helpers ─────────────────────────────────────────────────────
 
 def _get_bluff_keyword(session_id: str) -> str:
-    db_path = os.environ.get("DB_PATH", "skillrank.db")
-    try:
-        conn = sqlite3.connect(db_path)
-        row = conn.execute(
-            "SELECT bluff_keyword FROM sessions WHERE session_id = ?", (session_id,)
-        ).fetchone()
-        conn.close()
-        return row[0] if row and row[0] else ""
-    except Exception:
-        return ""
+    session = get_session(session_id)
+    return session.get("bluff_keyword", "") if session else ""
 
 
 def _store_bluff_keyword(session_id: str, keyword: str):
-    db_path = os.environ.get("DB_PATH", "skillrank.db")
-    try:
-        conn = sqlite3.connect(db_path)
-        try:
-            conn.execute("ALTER TABLE sessions ADD COLUMN bluff_keyword TEXT DEFAULT ''")
-            conn.commit()
-        except Exception:
-            pass
-        conn.execute(
-            "UPDATE sessions SET bluff_keyword = ? WHERE session_id = ?",
-            (keyword, session_id),
-        )
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"KEYWORD STORE ERROR: {e}")
+    update_session(session_id, bluff_keyword=keyword)
